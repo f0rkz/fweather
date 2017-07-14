@@ -99,30 +99,31 @@ class FWeather(object):
         ))
 
     def get_weather(self):
-        weather = self._load_weather()
+        if self.api_key is not None:
+            weather = self._load_weather()
 
-        if self.api_key is None:
-            # No API key is configured. Let the user know.
-            weather = ("💀 No API Key Configured 💀")
+            if self._can_i_run_yet():
+                location = self._get_location_info()
+                weather_info = self._get_current_weather_info(lat=location['lat'], lon=location['lon'])
 
-        if self._can_i_run_yet():
-            location = self._get_location_info()
-            weather_info = self._get_current_weather_info(lat=location['lat'], lon=location['lon'])
-
-            weather = {
-                'last_run': int(time.time()),
-                'weather': {
-                    'city': location['city'],
-                    'condition_icon': weather_info['icon'],
-                    'condition': weather_info['summary'],
-                    'temperature': weather_info['temperature'],
-                    'windspeed': weather_info['windSpeed'],
+                weather = {
+                    'last_run': int(time.time()),
+                    'weather': {
+                        'city': location['city'],
+                        'condition_icon': weather_info['icon'],
+                        'condition': weather_info['summary'],
+                        'temperature': weather_info['temperature'],
+                        'windspeed': weather_info['windSpeed'],
+                    }
                 }
-            }
 
-            self._save_weather(weather)
+                self._save_weather(weather)
 
-        print(self._render(weather))
+            print(self._render(weather))
+
+        else:
+            print("💀 No API Key Configured 💀")
+
 
 if __name__ == '__main__':
     FWeather().get_weather()
