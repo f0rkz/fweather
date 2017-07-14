@@ -14,7 +14,8 @@ The API key needs to either be exported as `FORECASTIO_KEY` or loaded as a json 
 Which will look like this:
 ```json
 {
-      "token": "YOURTOKENHERE"
+      "token": "YOURTOKENHERE",
+      "frequency": 90
 }
 ```
 
@@ -22,6 +23,7 @@ Or simply plop the variable in your .bashrc .tmuxrc, etc.
 
 ```bash
 export FORECASTIO_KEY="YOURKEYHERE"
+export FORECASTIO_CALL_FREQUENCY="90"
 ```
 
 The script will load one or the other (it will load the JSON first, then the ENV).

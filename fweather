@@ -4,18 +4,63 @@
 import os
 import json
 import requests
+import time
 
 
 class FWeather(object):
     def __init__(self):
+        self.weather_cache_dir = os.path.join(os.environ.get('HOME'), '.cache', 'fweather')
+        self.weather_cache_json = os.path.join(os.environ.get('HOME'), '.cache', 'fweather', 'weather.json')
+
+        if not os.path.isdir(self.weather_cache_dir):
+            os.makedirs(self.weather_cache_dir)
+
+        self.call_frequency = os.environ.get('FORECASTIO_CALL_FREQUENCY', 90)
+
         if os.path.isfile(os.path.join(os.environ.get('HOME'), '.config', 'forecastio.json')):
             with open(os.path.join(os.environ.get('HOME'), '.config', 'forecastio.json'), 'r') as f:
-                self.api_key = json.load(f)
-                self.api_key = self.api_key.get('token', None)
+                self.forecastio_config = json.load(f)
+                self.call_frequency = self.forecastio_config.get('frequency', 90)
+                self.api_key = self.forecastio_config.get('token', None)
+
         elif os.environ.get('FORECASTIO_KEY'):
             self.api_key = os.environ.get('FORECASTIO_KEY', None)
+
         else:
             self.api_key = None
+
+    def _load_weather(self):
+        if os.path.isfile(self.weather_cache_json):
+            with open(self.weather_cache_json, 'r') as weather_json:
+                return json.load(weather_json)
+
+        return None
+
+    def _save_weather(self, weather):
+        # JSON map
+        """
+        weather = {
+            "last_run": int(time.time()),
+            "weather": {
+                "city": city,
+                "condition_icon": condition_icon,
+                "condition": condition,
+                "temperature": temperature,
+                "windspeed": windspeed
+            }
+        }
+        """
+        with open(self.weather_cache_json, 'w') as weather_file:
+            json.dump(weather, weather_file)
+
+        return
+
+    def _can_i_run_yet(self):
+        weather = self._load_weather()
+        if weather is None or int(weather['last_run']) + int(self.call_frequency) <= int(time.time()):
+            return True
+
+        return False
 
     def _get_location_info(self):
         r = requests.get('http://ip-api.com/json')
@@ -28,7 +73,7 @@ class FWeather(object):
 
     def _get_icon(self, condition):
         icon_map = {
-            "clear-day": "☀",
+            "clear-day": "☀️",
             "clear-night": "🌙",
             "rain": "🌧",
             "snow": "🌨",
@@ -37,30 +82,47 @@ class FWeather(object):
             "fog": "🌫",
             "cloudy": "🌥",
             "partly-cloudy-day": "🌤",
-            "partly-cloudy-night": "🌙☁️",
+            "partly-cloudy-night": "🌙☁️️",
             "hail": "⛔🌨⛔",
             "thunderstorm": "⛔⛈⛔",
             "tornado": "⛔🌪⛔",
         }
         return icon_map.get(condition, "❓")
 
-    def get_weather(self):
-        location = self._get_location_info()
+    def _render(self, weather):
+        return("{city}: {condition_icon}  {condition} {temperature}°F {windspeed}mph".format(
+            city=weather['weather']['city'],
+            condition_icon=self._get_icon(condition=weather['weather']['condition_icon']),
+            condition=weather['weather']['condition'],
+            temperature=weather['weather']['temperature'],
+            windspeed=weather['weather']['windspeed'],
+        ))
 
-        city = location['city']
-        weather_info = self._get_current_weather_info(lat=location['lat'], lon=location['lon'])
+    def get_weather(self):
+        weather = self._load_weather()
 
         if self.api_key is None:
             # No API key is configured. Let the user know.
-            print("💀 No API Key Configured 💀")
-        else:
-            print("{city}: {condition_icon}  {condition} {temperature}°F {windspeed}mph").format(
-                city=city,
-                condition_icon=self._get_icon(condition=weather_info['icon']),
-                condition=weather_info['summary'],
-                temperature=weather_info['temperature'],
-                windspeed=weather_info['windSpeed'],
-            )
+            weather = ("💀 No API Key Configured 💀")
+
+        if self._can_i_run_yet():
+            location = self._get_location_info()
+            weather_info = self._get_current_weather_info(lat=location['lat'], lon=location['lon'])
+
+            weather = {
+                'last_run': int(time.time()),
+                'weather': {
+                    'city': location['city'],
+                    'condition_icon': weather_info['icon'],
+                    'condition': weather_info['summary'],
+                    'temperature': weather_info['temperature'],
+                    'windspeed': weather_info['windSpeed'],
+                }
+            }
+
+            self._save_weather(weather)
+
+        print(self._render(weather))
 
 if __name__ == '__main__':
     FWeather().get_weather()
