@@ -39,7 +39,7 @@ Copy `fweather` into your tmux bin files directory. I keep mine in `~/bin/`
 
 Enable fweather in tmux:
 
-`set -g status-right "#(~/bin/fweather)`
+`set -g status-right "#(~/bin/fweather)"`
 
 Reload tmux
 
