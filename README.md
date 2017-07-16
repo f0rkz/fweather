@@ -4,17 +4,20 @@ Get the weather in your tmux status bar!
 
 ![Screenshot](screenshot.png)
 
-# API Key
+# Configuration
+A very minimal configuration is required to use fweather.
+
+## API Key
 An API key from [DarkSky.net / Forcast.io](https://darksky.net/) is required.
 
-The API key needs to either be exported as `FORECASTIO_KEY` or loaded as a json file in:
+The API key needs to either be exported as `FORECASTIO_API_KEY` or loaded as a json file in:
 
-`~/.config/forecastio.json`
+`~/.config/fweather.json`
 
 Which will look like this:
 ```json
 {
-      "token": "YOURTOKENHERE",
+      "forecastio_api_key": "YOURKEYHERE",
       "frequency": 90
 }
 ```
@@ -22,27 +25,47 @@ Which will look like this:
 Or simply plop the variable in your .bashrc .tmuxrc, etc.
 
 ```bash
-export FORECASTIO_KEY="YOURKEYHERE"
-export FORECASTIO_CALL_FREQUENCY="90"
+export FORECASTIO_API_KEY="YOURKEYHERE"
+export FWEATHER_CALL_FREQUENCY="90"
 ```
-
-The script will load one or the other (it will load the JSON first, then the ENV).
 
 # Install
 
-This python script requires the `requests` library which may already be installed on most systems.
-Just to be sure, install it with `pip`:
+It is recommended to use virtualenv for fweather (or really any python project).
 
-`pip install -r requiremets.txt`
+Once you have a virtualenv established, make sure you activate it and install the script's prerequisites.
 
-Copy `fweather` into your tmux bin files directory. I keep mine in `~/bin/`
+Example:
 
-`cp fweather ~/bin/`
+```bash
+$ source ~/venv/bin/activate
+$(venv) pip install -r requirements.txt
+```
+
+Install `fweather` somewhere on your system to use with tmux:
+
+`curl https://raw.githubusercontent.com/f0rkz/fweather/master/fweather -o ~/bin/fweather`
+
 
 Enable fweather in tmux:
 
-`set -g status-right "#(~/bin/fweather)"`
+Example:
+
+`set -g status-right "#(~/venv/bin/python ~/bin/fweather)"`
 
 Reload tmux
 
 `C-r`
+
+# Errors
+You will see a very clear message if the API key is not loaded:
+
+![No API Key](no_api_key.png)
+
+Other issues? I am going to try and make as many potential exceptions clear in Tmux, but there is very limited space
+to work with. Its better to see what is going on with the script itself by running it by hand and reading/fixing the 
+errors in the stack trace.
+ 
+Run the script by hand and take a look at the stacktrace!
+
+`~/bin/venv/bin/python ~/bin/fweather`

@@ -9,25 +9,70 @@ import time
 
 class FWeather(object):
     def __init__(self):
-        self.weather_cache_dir = os.path.join(os.environ.get('HOME'), '.cache', 'fweather')
-        self.weather_cache_json = os.path.join(os.environ.get('HOME'), '.cache', 'fweather', 'weather.json')
+        ##############################################################################
+        #
+        # Frequency in which fweather updates (in seconds)
+        # Default: 90
+        # Be warned! forecast.io charges for any calls over 1000.
+        # The 90 second default will make 960 calls.
+        #
+        ##############################################################################
+        self.call_frequency = os.environ.get('FWEATHER_CALL_FREQUENCY', 90)
+
+        ##############################################################################
+        #
+        # forecast.io / darksky.net API key.
+        # Sign up for an API key here: https://darksky.net/dev/
+        #
+        ##############################################################################
+        self.api_key = os.environ.get('FORECASTIO_API_KEY', None)
+
+        ##############################################################################
+        #
+        # Base directories
+        #
+        ##############################################################################
+        self.home_dir = os.path.join(os.environ.get('HOME'))
+        self.cache_dir = os.path.join(self.home_dir, '.cache')
+        self.config_dir = os.path.join(self.home_dir, '.config')
+
+        if not os.path.isdir(self.cache_dir):
+            os.makedirs(self.cache_dir)
+
+        if not os.path.isdir(self.config_dir):
+            os.makedirs(self.config_dir)
+
+        ##############################################################################
+        #
+        # Cache configuration
+        #
+        ##############################################################################
+        self.weather_cache_dir = os.path.join(self.cache_dir, 'fweather')
+        self.weather_cache_json = os.path.join(self.weather_cache_dir, 'weather.json')
 
         if not os.path.isdir(self.weather_cache_dir):
             os.makedirs(self.weather_cache_dir)
 
-        self.call_frequency = os.environ.get('FORECASTIO_CALL_FREQUENCY', 90)
+        ##############################################################################
+        #
+        # fweather can load a json configuration if that is preferred over ENV
+        # If fweather.json exists, load it up and replace the current config.
+        #
+        ###############################################################################
+        self.fweather_config_file = os.path.join(self.config_dir, 'fweather.json')
+        if os.path.isfile(self.fweather_config_file):
+            with open(self.fweather_config_file, 'r') as f:
+                fweather_config = json.load(f)
+                self.call_frequency = fweather_config.get('frequency', 90)
+                self.api_key = fweather_config.get('forecastio_api_key', None)
 
-        if os.path.isfile(os.path.join(os.environ.get('HOME'), '.config', 'forecastio.json')):
-            with open(os.path.join(os.environ.get('HOME'), '.config', 'forecastio.json'), 'r') as f:
-                self.forecastio_config = json.load(f)
-                self.call_frequency = self.forecastio_config.get('frequency', 90)
-                self.api_key = self.forecastio_config.get('token', None)
-
-        elif os.environ.get('FORECASTIO_KEY'):
-            self.api_key = os.environ.get('FORECASTIO_KEY', None)
-
-        else:
-            self.api_key = None
+        ###############################################################################
+        #
+        # URL Configuration for remote API services.
+        #
+        ################################################################################
+        self.url_geoip = 'http://freegeoip.net/json'
+        self.url_weather = 'https://api.darksky.net/forecast/%s/%s,%s'
 
     def _load_weather(self):
         if os.path.isfile(self.weather_cache_json):
@@ -63,11 +108,11 @@ class FWeather(object):
         return False
 
     def _get_location_info(self):
-        r = requests.get('http://ip-api.com/json')
+        r = requests.get(self.url_geoip)
         return r.json()
 
     def _get_current_weather_info(self, lat, lon):
-        r = requests.get('https://api.darksky.net/forecast/{}/{},{}'.format(self.api_key, lat, lon))
+        r = requests.get(self.url_weather % (self.api_key, lat, lon))
         weather_json = r.json()
         return weather_json['currently']
 
@@ -104,7 +149,7 @@ class FWeather(object):
 
             if self._can_i_run_yet():
                 location = self._get_location_info()
-                weather_info = self._get_current_weather_info(lat=location['lat'], lon=location['lon'])
+                weather_info = self._get_current_weather_info(lat=location['latitude'], lon=location['longitude'])
 
                 weather = {
                     'last_run': int(time.time()),
